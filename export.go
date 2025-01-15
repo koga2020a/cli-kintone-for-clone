@@ -27,16 +27,19 @@ func checkNoRecord(records []*kintone.Record) {
 }
 
 func getRecordsForSeekMethod(app *kintone.App, id uint64, fields []string, isRecordFound bool) ([]*kintone.Record, error) {
-	query := fmt.Sprintf(" order by $id desc limit %v", EXPORT_ROW_LIMIT)
-	if id > 0 {
-		query = "$id < " + fmt.Sprintf("%v", id) + query
+	var query string
+	if isRecordFound {
+		query = fmt.Sprintf("$id > %d order by $id asc limit %v", id, EXPORT_ROW_LIMIT)
+	} else {
+		query = fmt.Sprintf("$id >= %d order by $id asc limit %v", id, EXPORT_ROW_LIMIT)
 	}
+	if config.Query != "" {
+		query = fmt.Sprintf("(%s) and (%s)", config.Query, query)
+	}
+
 	records, err := app.GetRecords(fields, query)
 	if err != nil {
 		return nil, err
-	}
-	if isRecordFound {
-		checkNoRecord(records)
 	}
 	return records, nil
 }
@@ -387,9 +390,7 @@ func isExistFile(fileFullPath string) bool {
 func makeRow(fields map[string]*kintone.FieldInfo) Row {
 	row := make([]*Cell, 0)
 
-	var cell *Cell
-
-	cell = &Cell{Code: "$id", Type: kintone.FT_ID}
+	cell := &Cell{Code: "$id", Type: kintone.FT_ID}
 	row = append(row, cell)
 	cell = &Cell{Code: "$revision", Type: kintone.FT_REVISION}
 	row = append(row, cell)
@@ -400,15 +401,15 @@ func makeRow(fields map[string]*kintone.FieldInfo) Row {
 		}
 		if val.Type == kintone.FT_SUBTABLE {
 			// record id for subtable
-			cell := &Cell{Code: val.Code, Type: val.Type, Index: val.Index}
+			cell := &Cell{Code: val.Code, Type: val.Type}
 			row = append(row, cell)
 
 			for _, subField := range val.Fields {
-				cell := &Cell{Code: subField.Code, Type: subField.Type, IsSubField: true, Table: val.Code, Index: subField.Index}
+				cell := &Cell{Code: subField.Code, Type: subField.Type, IsSubField: true, Table: val.Code}
 				row = append(row, cell)
 			}
 		} else {
-			cell := &Cell{Code: val.Code, Type: val.Type, Index: val.Index}
+			cell := &Cell{Code: val.Code, Type: val.Type}
 			row = append(row, cell)
 		}
 	}
@@ -419,35 +420,25 @@ func makeRow(fields map[string]*kintone.FieldInfo) Row {
 func makePartialRow(fields map[string]*kintone.FieldInfo, partialFields []string) Row {
 	row := make([]*Cell, 0)
 
-	maxFieldIdx := 0
-	for index, val := range partialFields {
-		cell := getCell(val, fields)
+	for _, code := range partialFields {
+		cell := getCell(code, fields)
 		if cell.Type == "UNKNOWN" || cell.IsSubField {
 			continue
 		}
-		currentFieldIdx := index + maxFieldIdx
+
 		if cell.Type == kintone.FT_SUBTABLE {
 			// record id for subtable
-			cell := &Cell{Code: cell.Code, Type: cell.Type, Index: currentFieldIdx}
+			cell := &Cell{Code: cell.Code, Type: cell.Type}
 			row = append(row, cell)
 
 			// append all sub fields
-			field := fields[val]
-			maxSubFieldIdx := 0
+			field := fields[code]
 			for _, subField := range field.Fields {
-				currentSubFieldIdx := subField.Index + maxFieldIdx
-				cell := &Cell{Code: subField.Code, Type: subField.Type, IsSubField: true, Table: val, Index: currentSubFieldIdx}
+				cell := &Cell{Code: subField.Code, Type: subField.Type, IsSubField: true, Table: code}
 				row = append(row, cell)
-				if currentSubFieldIdx > maxSubFieldIdx {
-					maxSubFieldIdx = currentSubFieldIdx
-				}
-			}
-			if maxSubFieldIdx > maxFieldIdx {
-				maxFieldIdx = maxSubFieldIdx
 			}
 		} else {
-			cell := &Cell{Code: cell.Code, Type: cell.Type, Index: currentFieldIdx}
-			maxFieldIdx = currentFieldIdx
+			cell := &Cell{Code: cell.Code, Type: cell.Type}
 			row = append(row, cell)
 		}
 	}
@@ -608,14 +599,13 @@ func writeRecordsBySeekMethodForCsv(app *kintone.App, id uint64, writer io.Write
 		return err
 	}
 	if len(records) == EXPORT_ROW_LIMIT {
-		isRecordFound = false
-		return writeRecordsBySeekMethodForCsv(app, records[len(records)-1].Id(), writer, row, hasTable, index, fields, isRecordFound, isAppendIdCustome)
+		return writeRecordsBySeekMethodForCsv(app, records[len(records)-1].Id(), writer, row, hasTable, index, fields, false, isAppendIdCustome)
 	}
 	return nil
 }
 
-func writeRecordsBySeekMethodForJson(app *kintone.App, id uint64, writer io.Writer, index uint64, fields []string, isRecordsNotFound bool, isAppendIdCustome bool) error {
-	records, err := getRecordsForSeekMethod(app, id, fields, isRecordsNotFound)
+func writeRecordsBySeekMethodForJson(app *kintone.App, id uint64, writer io.Writer, index uint64, fields []string, isRecordFound bool, isAppendIdCustome bool) error {
+	records, err := getRecordsForSeekMethod(app, id, fields, isRecordFound)
 	if err != nil {
 		return err
 	}
@@ -627,8 +617,7 @@ func writeRecordsBySeekMethodForJson(app *kintone.App, id uint64, writer io.Writ
 		return err
 	}
 	if len(records) == EXPORT_ROW_LIMIT {
-		isRecordsNotFound = false
-		return writeRecordsBySeekMethodForJson(app, records[len(records)-1].Id(), writer, index, fields, isRecordsNotFound, isAppendIdCustome)
+		return writeRecordsBySeekMethodForJson(app, records[len(records)-1].Id(), writer, index, fields, false, isAppendIdCustome)
 	}
 	fmt.Fprint(writer, "\n]}")
 	return nil

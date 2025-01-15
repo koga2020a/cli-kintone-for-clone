@@ -10,6 +10,7 @@
 1. [Go言語の公式サイト](https://golang.org/dl/)からWindows用インストーラー（.msi）をダウンロード
 2. ダウンロードしたインストーラーを実行
 3. インストール完了後、コマンドプロンプトを開いて以下のコマンドで確認：
+※powershellの場合、`$env:Path += ";C:\Program Files\Go\bin"` を実行してください
 ```batch
 go version
 ```
