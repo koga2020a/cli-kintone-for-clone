@@ -381,29 +381,30 @@ func (err *ErrorResponse) show(prefix string) {
 
 // HandelResponse for bulkRequest
 func (bulk *BulkRequests) HandelResponse(rep *DataResponseBulkPOST, err interface{}, lastRowImport, rowNumber uint64) {
-
 	if err != nil {
-		fmt.Printf(" => ERROR OCCURRED\n")
-		CLIMessage := fmt.Sprintf("ERROR.\nFor error details, please read the details above.\n")
-		CLIMessage += fmt.Sprintf("Lines %d to %d of the imported file contain errors. Please fix the errors on the file, and re-import it with the flag \"-l %d\"\n", lastRowImport, rowNumber, lastRowImport)
+		fmt.Printf(" => エラーが発生しました\n")
 
-		method := map[string]string{"POST": "INSERT", "PUT": "UPDATE"}
+		method := map[string]string{"POST": "挿入", "PUT": "更新"}
 		methodOccuredError := ""
+
 		if reflect.TypeOf(err).String() != "*main.BulkRequestsErrors" {
 			if reflect.TypeOf(err).String() != "*main.BulkRequestsError" {
 				fmt.Printf("\n")
 				fmt.Println(err)
 				fmt.Printf("\n")
-				// Reset CLI Message
-				CLIMessage = ""
 			} else {
-				errorResp := &ErrorResponse{}
-				errorResp.Status = err.(*BulkRequestsError).HTTPStatus
-				errorResp.Message = err.(*BulkRequestsError).Message
-				errorResp.Errors = err.(*BulkRequestsError).Errors
-				errorResp.ID = err.(*BulkRequestsError).ID
-				errorResp.Code = err.(*BulkRequestsError).Code
-				errorResp.show("")
+				errorResp := &ErrorResponse{
+					Status:  err.(*BulkRequestsError).HTTPStatus,
+					Message: err.(*BulkRequestsError).Message,
+					Errors:  err.(*BulkRequestsError).Errors,
+					ID:      err.(*BulkRequestsError).ID,
+					Code:    err.(*BulkRequestsError).Code,
+				}
+
+				// エラー詳細の表示を強化
+				fmt.Printf("処理: %s\n", method[bulk.Requests[0].Method])
+				fmt.Printf("行範囲: %d から %d\n", lastRowImport, rowNumber)
+				errorResp.showDetailed("")
 			}
 		} else {
 			errorsResp := err.(*BulkRequestsErrors)
@@ -411,26 +412,65 @@ func (bulk *BulkRequests) HandelResponse(rep *DataResponseBulkPOST, err interfac
 				if errorItem.Code == "" {
 					continue
 				}
-				errorResp := &ErrorResponse{}
-				errorResp.ID = errorItem.ID
-				errorResp.Code = errorItem.Code
-				errorResp.Status = errorsResp.HTTPStatus
-				errorResp.Message = errorItem.Message
-				errorResp.Errors = errorItem.Errors
 
-				errorResp.show("")
+				errorResp := &ErrorResponse{
+					ID:      errorItem.ID,
+					Code:    errorItem.Code,
+					Status:  errorsResp.HTTPStatus,
+					Message: errorItem.Message,
+					Errors:  errorItem.Errors,
+				}
+
+				// エラー詳細の表示を強化
+				fmt.Printf("\n=== エラー #%d ===\n", idx+1)
+				fmt.Printf("処理: %s\n", method[bulk.Requests[idx].Method])
+				fmt.Printf("行範囲: %d から %d\n", lastRowImport, rowNumber)
+				errorResp.showDetailed("")
+
 				methodOccuredError = method[bulk.Requests[idx].Method]
 			}
 		}
+
 		showTimeLog()
-		fmt.Printf("PROCESS STOPPED!\n\n")
-		if CLIMessage != "" {
-			fmt.Println(methodOccuredError, CLIMessage)
+		fmt.Printf("処理を中止しました!\n\n")
+
+		// エラーメッセージの改善
+		errorMsg := fmt.Sprintf("インポートファイルの %d 行目から %d 行目にエラーがあります。\n", lastRowImport, rowNumber)
+		errorMsg += fmt.Sprintf("ファイルのエラーを修正し、-l %d オプションを付けて再度インポートしてください。\n", lastRowImport)
+
+		if methodOccuredError != "" {
+			fmt.Printf("%s処理でエラー: %s\n", methodOccuredError, errorMsg)
 		}
+
 		os.Exit(1)
 	}
-	fmt.Println(" => SUCCESS")
+	fmt.Println(" => 成功")
 }
+
+// ErrorResponseのshow関数を改善
+func (err *ErrorResponse) showDetailed(prefix string) {
+	fmt.Printf("エラーID: %s\n", err.ID)
+	fmt.Printf("エラーコード: %s\n", err.Code)
+	if err.Status != "" {
+		fmt.Printf("ステータス: %s\n", err.Status)
+	}
+	fmt.Printf("メッセージ: %s\n", err.Message)
+
+	if err.Errors != nil {
+		fmt.Printf("%sエラー詳細:\n", prefix)
+		for fieldName, val := range err.Errors.(map[string]interface{}) {
+			fieldError := val.(map[string]interface{})
+			messages := fieldError["messages"].([]interface{})
+
+			fmt.Printf("%sフィールド '%s':\n", prefix, fieldName)
+			for _, msg := range messages {
+				fmt.Printf("%s  - %s\n", prefix, msg.(string))
+			}
+		}
+		fmt.Printf("\n")
+	}
+}
+
 func showTimeLog() {
 	fmt.Printf("%v: ", time.Now().Format("[2006-01-02 15:04:05]"))
 }

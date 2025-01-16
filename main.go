@@ -427,7 +427,7 @@ func printHelp() {
 	log.Output(2, "  -P, --basic-auth-password=PASS ベーシック認証のパスワード")
 	log.Output(2, "  -q, --query=QUERY              クエリ文字列")
 	log.Output(2, "  -c, --fields=FIELDS            エクスポートするフィールド（カンマ区切り）")
-	log.Output(2, "  -f, --file=FILE                csvファイル 入力ファイルパス")
+	log.Output(2, "  -f, --file=FILE                csvファイル 入力・出力ファイルパス")
 	log.Output(2, "  -b, --file-dir=DIR             添付ファイルのディレクトリ（各添付ファイルの上限は100MBです）")
 	log.Output(2, "  -D, --delete-all               挿入前にレコードを削除します")
 	log.Output(2, "  -l, --line=LINE                入力ファイル内のデータの位置インデックス")
