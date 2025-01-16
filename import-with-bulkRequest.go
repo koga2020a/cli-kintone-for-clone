@@ -282,11 +282,15 @@ func importFromCSV(app *kintone.App, _reader io.Reader) error {
 				setRecordUpdatable(record, columns)
 				err = bulkRequests.ImportDataUpdate(app, kintone.NewRecordWithId(id, record), keyField)
 				if err != nil {
+					// エラーが発生したレコードの詳細と行番号を出力
+					log.Printf("エラーが発生しました。行番号: %d, レコード: %+v, エラー内容: %v\n", rowNumber, record, err)
 					log.Fatalln(err)
 				}
 			} else {
 				err = bulkRequests.ImportDataInsert(app, kintone.NewRecord(record))
 				if err != nil {
+					// エラーが発生したレコードの詳細と行番号を出力
+					log.Printf("エラーが発生しました。行番号: %d, レコード: %+v, エラー内容: %v\n", rowNumber, record, err)
 					log.Fatalln(err)
 				}
 			}

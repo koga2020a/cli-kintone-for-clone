@@ -20,13 +20,13 @@ import (
 )
 
 const (
-	// ConstBulkRequestLimitRecordOption set option: record per bulkRequest
+	// 1回のバルクリクエストで処理できるレコード数の上限
 	ConstBulkRequestLimitRecordOption = 100
 
-	// ConstBulkRequestLimitRequest kintone limited: The request count per bulkRequest
+	// 1回のバルクリクエストで実行できるリクエスト数の上限
 	ConstBulkRequestLimitRequest = 20
 
-	// ConstRecordsLimitPerRequest kintone limited: The records count per request
+	// 1回のリクエストで処理できるレコード数の上限
 	ConstRecordsLimitPerRequest = 100
 )
 
@@ -70,7 +70,7 @@ type DataRequestRecordsPOST struct {
 	Records []*kintone.Record `json:"records"`
 }
 
-//DataRequestRecordPUT structure
+// DataRequestRecordPUT structure
 type DataRequestRecordPUT struct {
 	ID     uint64          `json:"id,string"`
 	Record *kintone.Record `json:"record,string"`

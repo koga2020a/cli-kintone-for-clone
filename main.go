@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"runtime"
@@ -14,6 +15,7 @@ import (
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/encoding/traditionalchinese"
 	"golang.org/x/text/encoding/unicode"
+	"golang.org/x/text/transform"
 
 	flags "github.com/jessevdk/go-flags"
 )
@@ -22,7 +24,7 @@ import (
 const NAME = "cli-kintone"
 
 // VERSION of this package
-const VERSION = "0.14.1"
+const VERSION = "0.14.1.for-clone"
 
 // IMPORT_ROW_LIMIT The maximum row will be import
 const IMPORT_ROW_LIMIT = 100
@@ -32,25 +34,26 @@ const EXPORT_ROW_LIMIT = 500
 
 // Configure of this package
 type Configure struct {
-	IsImport          bool     `long:"import" description:"Import data from stdin. If \"-f\" is also specified, data is imported from the file instead"`
-	IsExport          bool     `long:"export" description:"Export kintone data to stdout"`
-	Domain            string   `short:"d" default:"" description:"Domain name (specify the FQDN)"`
-	AppID             uint64   `short:"a" default:"0" description:"App ID"`
-	Login             string   `short:"u" default:"" description:"User's log in name"`
-	Password          string   `short:"p" default:"" description:"User's password"`
-	APIToken          string   `short:"t" default:"" description:"API token"`
-	GuestSpaceID      uint64   `short:"g" default:"0" description:"Guest Space ID"`
-	Format            string   `short:"o" default:"csv" description:"Output format. Specify either 'json' or 'csv'"`
-	Encoding          string   `short:"e" default:"utf-8" description:"Character encoding (default: utf-8).\n Only support the encoding below both field code and data itself: \n 'utf-8', 'utf-16', 'utf-16be-with-signature', 'utf-16le-with-signature', 'sjis' or 'euc-jp', 'gbk' or 'big5'"`
-	BasicAuthUser     string   `short:"U" default:"" description:"Basic authentication user name"`
-	BasicAuthPassword string   `short:"P" default:"" description:"Basic authentication password"`
-	Query             string   `short:"q" default:"" description:"Query string"`
-	Fields            []string `short:"c" description:"Fields to export (comma separated). Specify the field code name"`
-	FilePath          string   `short:"f" default:"" description:"Input file path"`
-	FileDir           string   `short:"b" default:"" description:"Attachment file directory"`
-	DeleteAll         bool     `short:"D" description:"Delete records before insert. You can specify the deleting record condition by option \"-q\""`
-	Line              uint64   `short:"l" default:"1" description:"Position index of data in the input file"`
-	Version           bool     `short:"v" long:"version" description:"Version of cli-kintone"`
+	IsImport          bool     `long:"import" description:"Import data from standard input. If '-f' is specified, import data from file"`
+	IsExport          bool     `long:"export" description:"Export data from kintone"`
+	Domain            string   `short:"d" long:"domain" description:"Domain name (specify FQDN)"`
+	AppID             uint64   `short:"a" long:"app-id" description:"App ID"`
+	Login             string   `short:"u" long:"user" description:"User's login name"`
+	Password          string   `short:"p" long:"password" description:"User's password"`
+	APIToken          string   `short:"t" long:"api-token" description:"API token"`
+	GuestSpaceID      uint64   `short:"g" long:"guest-space-id" description:"Guest space ID"`
+	Format            string   `short:"o" long:"format" description:"Output format. Specify 'json' or 'csv'"`
+	Encoding          string   `short:"e" long:"encoding" description:"Character encoding. Supported encodings: 'utf-8', 'utf-16', 'utf-16be-with-signature', 'utf-16le-with-signature', 'sjis', 'euc-jp', 'gbk', 'big5'"`
+	BasicAuthUser     string   `short:"U" long:"basic-auth-user" description:"Basic authentication username"`
+	BasicAuthPassword string   `short:"P" long:"basic-auth-password" description:"Basic authentication password"`
+	Query             string   `short:"q" long:"query" description:"Query string"`
+	Fields            []string `short:"c" long:"fields" description:"Fields to export (comma-separated). Specify field code names"`
+	FilePath          string   `short:"f" long:"file" description:"Input file path (file attachment limit is 100MB per file)"`
+	FileDir           string   `short:"b" long:"file-dir" description:"Directory for file attachments"`
+	DeleteAll         bool     `short:"D" long:"delete-all" description:"Delete records before insertion. Use option '-q' to specify delete conditions"`
+	Line              uint64   `short:"l" long:"line" description:"Data position index in input file"`
+	OutputFile        string   `long:"output-file" description:"File path for export results (outputs to stdout if not specified)"`
+	Version           bool     `short:"v" long:"version" description:"Display cli-kintone version"`
 }
 
 var config Configure
@@ -208,26 +211,49 @@ func getEncoding() encoding.Encoding {
 	}
 }
 
+// 新しい関数を追加
+func getConsoleWriter() io.Writer {
+	if runtime.GOOS == "windows" {
+		// Windowsの場合、UTF-8からShift-JISに変換
+		return transform.NewWriter(os.Stdout, japanese.ShiftJIS.NewEncoder())
+	}
+	// その他のOSではUTF-8のまま
+	return os.Stdout
+}
+
 func main() {
 	var err error
 
-	_, err = flags.ParseArgs(&config, os.Args[1:])
+	parser := flags.NewParser(&config, flags.Default)
+	parser.ShortDescription = "cli-kintone は kintone と対話するための CLI ツールです。"
+	parser.LongDescription = "cli-kintone を使用すると、kintone アプリケーションからデータをインポートおよびエクスポートできます。"
+
+	// 引数がない場合、ヘルプを表示して終了
+	if len(os.Args) == 1 {
+		printHelp()
+		os.Exit(0)
+	}
+
+	_, err = parser.Parse()
 	if err != nil {
-		if os.Args[1] != "-h" && os.Args[1] != "--help" {
-			fileExecute := os.Args[0]
-			fmt.Printf("\nTry '%s --help' for more information.\n", fileExecute)
+		if flagsErr, ok := err.(*flags.Error); ok && flagsErr.Type == flags.ErrHelp {
+			log.SetFlags(0)
+			printHelp()
+			os.Exit(0)
 		}
+		// ヘルプやバージョン以外のエラーの場合、ヒントを表示
+		fileExecute := os.Args[0]
+		fmt.Printf("\n詳細については '%s --help' を試してください。\n", fileExecute)
 		os.Exit(1)
 	}
 
-	if len(os.Args) > 0 && config.Version {
+	if config.Version {
 		fmt.Println(VERSION)
 		os.Exit(0)
 	}
 
-	if len(os.Args) == 0 || config.AppID == 0 || (config.APIToken == "" && (config.Domain == "" || config.Login == "")) {
-		helpArg := []string{"-h"}
-		flags.ParseArgs(&config, helpArg)
+	if (config.IsImport || config.IsExport) && (config.AppID == 0 || (config.APIToken == "" && (config.Domain == "" || config.Login == ""))) {
+		printHelp()
 		os.Exit(1)
 	}
 
@@ -235,7 +261,7 @@ func main() {
 		config.Domain += ".cybozu.com"
 	}
 
-	// Support set columm with comma separated (",") in arg
+	// カンマ区切りのフィールドをサポート
 	var cols []string
 	if len(config.Fields) > 0 {
 		for _, field := range config.Fields {
@@ -253,14 +279,14 @@ func main() {
 
 	var app *kintone.App
 	if config.BasicAuthUser != "" && config.BasicAuthPassword == "" {
-		fmt.Printf("Basic authentication password: ")
+		fmt.Printf("ベーシック認証のパスワード: ")
 		pass, _ := gopass.GetPasswd()
 		config.BasicAuthPassword = string(pass)
 	}
 
 	if config.APIToken == "" {
 		if config.Password == "" {
-			fmt.Printf("Password: ")
+			fmt.Printf("パスワード: ")
 			pass, _ := gopass.GetPasswd()
 			config.Password = string(pass)
 		}
@@ -287,44 +313,38 @@ func main() {
 
 	app.SetUserAgentHeader(NAME + "/" + VERSION + " (" + runtime.GOOS + " " + runtime.GOARCH + ")")
 
-	// Old logic without force import/export
-	if config.IsImport == false && config.IsExport == false {
-		if config.FilePath == "" {
-			writer := getWriter(os.Stdout)
-			if config.Query != "" {
-				err = exportRecordsWithQuery(app, config.Fields, writer)
-			} else {
-				fields := config.Fields
-				isAppendIdCustome := false
-				if len(config.Fields) > 0 && !containtString(config.Fields, "$id") {
-					fields = append(fields, "$id")
-					isAppendIdCustome = true
-				}
-
-				err = exportRecordsBySeekMethod(app, writer, fields, isAppendIdCustome)
+	// 出力先の決定
+	var writer io.Writer
+	if config.IsExport {
+		if config.OutputFile != "" {
+			file, err := os.Create(config.OutputFile)
+			if err != nil {
+				log.Fatalf("出力ファイルの作成に失敗しました: %v", err)
 			}
+			defer file.Close()
+			writer = getWriter(file)
 		} else {
-			err = importDataFromFile(app)
+			writer = getWriter(getConsoleWriter())
 		}
 	}
+
+	// インポートおよびエクスポートの処理
 	if config.IsImport && config.IsExport {
-		log.Fatal("The options --import and --export cannot be specified together!")
+		log.Fatal("オプション --import と --export は同時に指定できません！")
 	}
 
 	if config.IsImport {
 		if config.FilePath == "" {
 			err = importFromCSV(app, os.Stdin)
 		} else {
-
 			err = importDataFromFile(app)
 		}
 	}
 
 	if config.IsExport {
 		if config.FilePath != "" {
-			log.Fatal("The -f option is not supported with the --export option.")
+			log.Fatal("オプション --export を使用する際に -f オプションはサポートされていません。")
 		}
-		writer := getWriter(os.Stdout)
 		if config.Query != "" {
 			err = exportRecordsWithQuery(app, config.Fields, writer)
 		} else {
@@ -337,6 +357,26 @@ func main() {
 			err = exportRecordsBySeekMethod(app, writer, fields, isAppendIdCustome)
 		}
 	}
+
+	if !(config.IsImport || config.IsExport) {
+		if config.FilePath == "" {
+			writer := getWriter(getConsoleWriter())
+			if config.Query != "" {
+				err = exportRecordsWithQuery(app, config.Fields, writer)
+			} else {
+				fields := config.Fields
+				isAppendIdCustome := false
+				if len(config.Fields) > 0 && !containtString(config.Fields, "$id") {
+					fields = append(fields, "$id")
+					isAppendIdCustome = true
+				}
+				err = exportRecordsBySeekMethod(app, writer, fields, isAppendIdCustome)
+			}
+		} else {
+			err = importDataFromFile(app)
+		}
+	}
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -351,4 +391,41 @@ func importDataFromFile(app *kintone.App) error {
 		err = importFromCSV(app, file)
 	}
 	return err
+}
+
+// 新しいヘルプ表示関数を修正
+func printHelp() {
+	log.SetFlags(0) // タイムスタンプなどのプレフィックスを無効化
+
+	log.Output(2, "使用方法:")
+	log.Output(2, "  cli-kintone [オプション]")
+	log.Output(2, "")
+	log.Output(2, "オプション:")
+	log.Output(2, "  -i, --import                    標準入力からデータをインポートします。'-f' が指定されている場合はファイルからデータをインポートします")
+	log.Output(2, "  -e, --export                    kintoneデータをエクスポートします")
+	log.Output(2, "  -d, --domain=DOMAIN             ドメイン名（FQDNを指定）")
+	log.Output(2, "  -a, --app-id=APP-ID            アプリID")
+	log.Output(2, "  -u, --user=USER                 ユーザーのログイン名")
+	log.Output(2, "  -p, --password=PASSWORD         ユーザーのパスワード")
+	log.Output(2, "  -t, --api-token=TOKEN          APIトークン")
+	log.Output(2, "  -g, --guest-space-id=ID        ゲストスペースID")
+	log.Output(2, "  -o, --format=FORMAT            出力形式。'json' または 'csv' を指定")
+	log.Output(2, "  -e, --encoding=ENCODING        文字エンコーディング")
+	log.Output(2, "                                 サポートされているエンコーディング:")
+	log.Output(2, "                                 'utf-8', 'utf-16', 'utf-16be-with-signature',")
+	log.Output(2, "                                 'utf-16le-with-signature', 'sjis', 'euc-jp',")
+	log.Output(2, "                                 'gbk', 'big5'")
+	log.Output(2, "  -U, --basic-auth-user=USER     ベーシック認証のユーザー名")
+	log.Output(2, "  -P, --basic-auth-password=PASS ベーシック認証のパスワード")
+	log.Output(2, "  -q, --query=QUERY              クエリ文字列")
+	log.Output(2, "  -c, --fields=FIELDS            エクスポートするフィールド（カンマ区切り）")
+	log.Output(2, "  -f, --file=FILE                入力ファイルパス（各添付ファイルの上限は100MBです）")
+	log.Output(2, "  -b, --file-dir=DIR             添付ファイルのディレクトリ")
+	log.Output(2, "  -D, --delete-all               挿入前にレコードを削除します")
+	log.Output(2, "  -l, --line=LINE                入力ファイル内のデータの位置インデックス")
+	log.Output(2, "      --output-file=FILE         エクスポート結果を出力するファイルパス")
+	log.Output(2, "  -v, --version                  cli-kintone のバージョンを表示します")
+	log.Output(2, "  -h, --help                     このヘルプを表示します")
+	log.Output(2, "")
+	log.Output(2, "詳細については https://github.com/kintone/cli-kintone を参照してください")
 }
