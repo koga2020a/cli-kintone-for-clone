@@ -17,12 +17,13 @@ import (
 	"golang.org/x/text/transform"
 )
 
-// SubRecord structure
+// SubRecord 構造体はサブレコードのIDとフィールドを保持します
 type SubRecord struct {
 	Id     uint64
 	Fields map[string]interface{}
 }
 
+// getReader は与えられたリーダーからBOM文字を除去し、必要に応じてエンコーディングを適用したリーダーを返します
 func getReader(reader io.Reader) io.Reader {
 	readerWithoutBOM := removeBOMCharacter(reader)
 
@@ -33,12 +34,13 @@ func getReader(reader io.Reader) io.Reader {
 	return transform.NewReader(readerWithoutBOM, encoding.NewDecoder())
 }
 
-// delete specific records
+// deleteRecords は指定されたクエリに基づいてアプリからレコードを削除します
 func deleteRecords(app *kintone.App, query string) error {
 	var lastID uint64
 	for {
 		ids := make([]uint64, 0, IMPORT_ROW_LIMIT)
 
+		// クエリにリミットが含まれていない場合、デフォルトのリミットを追加
 		r := regexp.MustCompile(`limit\s+\d+`)
 		var _query string
 		if r.MatchString(query) {
@@ -51,25 +53,29 @@ func deleteRecords(app *kintone.App, query string) error {
 			return err
 		}
 
+		// レコードが存在しない場合、ループを終了
 		if len(records) == 0 {
 			break
 		}
 
+		// 削除対象のIDを収集
 		for _, record := range records {
 			id := record.Id()
 			ids = append(ids, id)
 		}
 
+		// レコードを削除
 		err = app.DeleteRecords(ids)
 		if err != nil {
 			return err
 		}
 
+		// 削除したレコードがリミット未満の場合、ループを終了
 		if len(records) < IMPORT_ROW_LIMIT {
 			break
 		}
 		if lastID == ids[0] {
-			// prevent an inifinite loop
+			// 無限ループを防止
 			return fmt.Errorf("Unexpected error occured during deleting")
 		}
 		lastID = ids[0]
@@ -77,6 +83,8 @@ func deleteRecords(app *kintone.App, query string) error {
 
 	return nil
 }
+
+// getSubRecord は指定されたテーブル名からサブレコードを取得、存在しない場合は新規作成します
 func getSubRecord(tableName string, tables map[string]*SubRecord) *SubRecord {
 	table := tables[tableName]
 	if table == nil {
@@ -87,6 +95,8 @@ func getSubRecord(tableName string, tables map[string]*SubRecord) *SubRecord {
 
 	return table
 }
+
+// addSubField はサブフィールドを追加します。ファイルフィールドの場合はアップロード処理を行います
 func addSubField(app *kintone.App, column *Column, col string, table *SubRecord) error {
 	if len(col) == 0 {
 		return nil
@@ -108,6 +118,8 @@ func addSubField(app *kintone.App, column *Column, col string, table *SubRecord)
 	}
 	return nil
 }
+
+// importFromCSV はCSVからkintoneアプリにデータをインポートします
 func importFromCSV(app *kintone.App, _reader io.Reader) error {
 
 	reader := csv.NewReader(getReader(_reader))
@@ -118,12 +130,13 @@ func importFromCSV(app *kintone.App, _reader io.Reader) error {
 	var nextRowImport uint64
 	nextRowImport = config.Line
 	bulkRequests := &BulkRequests{}
-	// retrieve field list
+	// フィールド一覧を取得
 	fields, err := getFields(app)
 	if err != nil {
 		return err
 	}
 
+	// 全レコードを削除する設定が有効な場合、削除処理を実行
 	if config.DeleteAll {
 		err = deleteRecords(app, config.Query)
 		if err != nil {
@@ -157,7 +170,7 @@ func importFromCSV(app *kintone.App, _reader io.Reader) error {
 				re := regexp.MustCompile("^(.*)\\[(.*)\\]$")
 				match := re.FindStringSubmatch(col)
 				if match != nil {
-					// for backward compatible
+					// 後方互換性のため
 					column := &Column{Code: match[1], Type: match[2]}
 					columns = append(columns, column)
 					col = column.Code
@@ -216,7 +229,7 @@ func importFromCSV(app *kintone.App, _reader io.Reader) error {
 
 							field, err := uploadFiles(app, col)
 							if err != nil {
-								return fmt.Errorf("\ncolumn[" + strconv.Itoa(i) +"]"+ " - row[" + strconv.FormatUint(rowNumber, 10)+"]: "+ err.Error())
+								return fmt.Errorf("\ncolumn[" + strconv.Itoa(i) + "]" + " - row[" + strconv.FormatUint(rowNumber, 10) + "]: " + err.Error())
 							}
 							if field != nil {
 								record[column.Code] = field
@@ -261,7 +274,7 @@ func importFromCSV(app *kintone.App, _reader io.Reader) error {
 			}
 
 			if hasId && keyField != "" {
-				log.Fatalln("The \"$id\" field and update key fields cannot be specified together in CSV import file.");
+				log.Fatalln("The \"$id\" field and update key fields cannot be specified together in CSV import file.")
 			}
 
 			_, hasKeyField := record[keyField]
@@ -301,6 +314,8 @@ func importFromCSV(app *kintone.App, _reader io.Reader) error {
 
 	return nil
 }
+
+// setRecordUpdatable は更新可能なレコードに必要なフィールドのみを設定します
 func setRecordUpdatable(record map[string]interface{}, columns Columns) {
 	for _, col := range columns {
 		switch col.Type {
@@ -313,6 +328,8 @@ func setRecordUpdatable(record map[string]interface{}, columns Columns) {
 		}
 	}
 }
+
+// uploadFiles はファイルディレクトリからファイルをアップロードし、ファイルフィールドを返します
 func uploadFiles(app *kintone.App, value string) (kintone.FileField, error) {
 	if config.FileDir == "" {
 		return nil, nil
@@ -324,6 +341,7 @@ func uploadFiles(app *kintone.App, value string) (kintone.FileField, error) {
 		return ret, nil
 	}
 
+	// 複数ファイルを改行で分割
 	files := strings.Split(value, "\n")
 	for _, file := range files {
 		var path string
@@ -341,6 +359,7 @@ func uploadFiles(app *kintone.App, value string) (kintone.FileField, error) {
 	return ret, nil
 }
 
+// uploadFile は単一のファイルをアップロードし、ファイルキーを返します
 func uploadFile(app *kintone.App, filePath string) (string, error) {
 	fi, err := os.Open(filePath)
 	if err != nil {
@@ -354,14 +373,16 @@ func uploadFile(app *kintone.App, filePath string) (string, error) {
 		return "", err
 	}
 
-	if fileinfo.Size() > 10*1024*1024 {
-		return "", fmt.Errorf("%s file must be less than 10 MB", filePath)
+	// ファイルサイズが100MBを超える場合はエラーを返す
+	if fileinfo.Size() > 100*1024*1024 {
+		return "", fmt.Errorf("%s file must be less than 100 MB", filePath)
 	}
 
 	fileKey, err := app.Upload(path.Base(filePath), "application/octet-stream", fi)
 	return fileKey, err
 }
 
+// getField はフィールドタイプに応じたフィールドオブジェクトを生成します
 func getField(fieldType string, value string) interface{} {
 	switch fieldType {
 	case kintone.FT_SINGLE_LINE_TEXT:
