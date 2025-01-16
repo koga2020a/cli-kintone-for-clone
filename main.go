@@ -49,8 +49,8 @@ type Configure struct {
 	BasicAuthPassword string   `short:"P" long:"basic-auth-password" description:"Basic authentication password"`
 	Query             string   `short:"q" long:"query" description:"Query string"`
 	Fields            []string `short:"c" long:"fields" description:"Fields to export (comma-separated). Specify field code names"`
-	FilePath          string   `short:"f" long:"file" description:"Input file path (file attachment limit is 100MB per file)"`
-	FileDir           string   `short:"b" long:"file-dir" description:"Directory for file attachments"`
+	FilePath          string   `short:"f" long:"file" description:"Input csv file path"`
+	FileDir           string   `short:"b" long:"file-dir" description:"Directory for file attachments (file attachment limit is 100MB per file)"`
 	DeleteAll         bool     `short:"D" long:"delete-all" description:"Delete records before insertion. Use option '-q' to specify delete conditions"`
 	Line              uint64   `short:"l" long:"line" description:"Data position index in input file"`
 	OutputFile        string   `long:"output-file" description:"File path for export results (outputs to stdout if not specified)"`
@@ -443,8 +443,8 @@ func printHelp() {
 	log.Output(2, "  -P, --basic-auth-password=PASS ベーシック認証のパスワード")
 	log.Output(2, "  -q, --query=QUERY              クエリ文字列")
 	log.Output(2, "  -c, --fields=FIELDS            エクスポートするフィールド（カンマ区切り）")
-	log.Output(2, "  -f, --file=FILE                入力ファイルパス（各添付ファイルの上限は100MBです）")
-	log.Output(2, "  -b, --file-dir=DIR             添付ファイルのディレクトリ")
+	log.Output(2, "  -f, --file=FILE                csvファイル 入力ファイルパス")
+	log.Output(2, "  -b, --file-dir=DIR             添付ファイルのディレクトリ（各添付ファイルの上限は100MBです）")
 	log.Output(2, "  -D, --delete-all               挿入前にレコードを削除します")
 	log.Output(2, "  -l, --line=LINE                入力ファイル内のデータの位置インデックス")
 	log.Output(2, "      --output-file=FILE         エクスポート結果を出力するファイルパス")
