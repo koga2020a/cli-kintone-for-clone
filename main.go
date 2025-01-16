@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"syscall"
 
 	"github.com/howeyc/gopass"
 	"github.com/kintone-labs/go-kintone"
@@ -192,6 +193,8 @@ func getCell(code string, fields map[string]*kintone.FieldInfo) *Cell {
 
 func getEncoding() encoding.Encoding {
 	switch config.Encoding {
+	case "utf-8":
+		return nil
 	case "utf-16":
 		return unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
 	case "utf-16be-with-signature":
@@ -214,11 +217,32 @@ func getEncoding() encoding.Encoding {
 // 新しい関数を追加
 func getConsoleWriter() io.Writer {
 	if runtime.GOOS == "windows" {
-		// Windowsの場合、UTF-8からShift-JISに変換
+		// Windowsの場合はUTF-8で出力できるようにする
+		stdout := os.Stdout
+		if err := setConsoleUTF8(stdout); err == nil {
+			return stdout
+		}
+		// UTF-8設定に失敗した場合はShift-JISに変換
 		return transform.NewWriter(os.Stdout, japanese.ShiftJIS.NewEncoder())
 	}
-	// その他のOSではUTF-8のまま
+	// その他のOSではそのまま標準出力を使用
 	return os.Stdout
+}
+
+// Windows環境でUTF-8出力を有効にする
+func setConsoleUTF8(file *os.File) error {
+	if runtime.GOOS != "windows" {
+		return nil
+	}
+
+	// Windows用のコンソールをUTF-8モードに設定
+	kernel32 := syscall.NewLazyDLL("kernel32.dll")
+	proc := kernel32.NewProc("SetConsoleOutputCP")
+	r, _, err := proc.Call(65001) // 65001 is the code page for UTF-8
+	if r == 0 {
+		return err
+	}
+	return nil
 }
 
 func main() {
