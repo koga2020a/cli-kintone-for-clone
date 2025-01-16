@@ -49,11 +49,10 @@ type Configure struct {
 	BasicAuthPassword string   `short:"P" long:"basic-auth-password" description:"Basic authentication password"`
 	Query             string   `short:"q" long:"query" description:"Query string"`
 	Fields            []string `short:"c" long:"fields" description:"Fields to export (comma-separated). Specify field code names"`
-	FilePath          string   `short:"f" long:"file" description:"Input csv file path"`
+	FilePath          string   `short:"f" long:"file" description:"Input/Output file path for import/export"`
 	FileDir           string   `short:"b" long:"file-dir" description:"Directory for file attachments (file attachment limit is 100MB per file)"`
 	DeleteAll         bool     `short:"D" long:"delete-all" description:"Delete records before insertion. Use option '-q' to specify delete conditions"`
 	Line              uint64   `short:"l" long:"line" description:"Data position index in input file"`
-	OutputFile        string   `long:"output-file" description:"File path for export results (outputs to stdout if not specified)"`
 	Version           bool     `short:"v" long:"version" description:"Display cli-kintone version"`
 }
 
@@ -340,15 +339,36 @@ func main() {
 	// 出力先の決定
 	var writer io.Writer
 	if config.IsExport {
-		if config.OutputFile != "" {
-			file, err := os.Create(config.OutputFile)
-			if err != nil {
-				log.Fatalf("出力ファイルの作成に失敗しました: %v", err)
+		if config.Query != "" {
+			if config.FilePath != "" {
+				file, err := os.Create(config.FilePath)
+				if err != nil {
+					log.Fatalf("出力ファイルの作成に失敗しました: %v", err)
+				}
+				defer file.Close()
+				writer = getWriter(file)
+			} else {
+				writer = getWriter(getConsoleWriter())
 			}
-			defer file.Close()
-			writer = getWriter(file)
+			err = exportRecordsWithQuery(app, config.Fields, writer)
 		} else {
-			writer = getWriter(getConsoleWriter())
+			fields := config.Fields
+			isAppendIdCustome := false
+			if len(config.Fields) > 0 && !containtString(config.Fields, "$id") {
+				fields = append(fields, "$id")
+				isAppendIdCustome = true
+			}
+			if config.FilePath != "" {
+				file, err := os.Create(config.FilePath)
+				if err != nil {
+					log.Fatalf("出力ファイルの作成に失敗しました: %v", err)
+				}
+				defer file.Close()
+				writer = getWriter(file)
+			} else {
+				writer = getWriter(getConsoleWriter())
+			}
+			err = exportRecordsBySeekMethod(app, writer, fields, isAppendIdCustome)
 		}
 	}
 
@@ -360,42 +380,6 @@ func main() {
 	if config.IsImport {
 		if config.FilePath == "" {
 			err = importFromCSV(app, os.Stdin)
-		} else {
-			err = importDataFromFile(app)
-		}
-	}
-
-	if config.IsExport {
-		if config.FilePath != "" {
-			log.Fatal("オプション --export を使用する際に -f オプションはサポートされていません。")
-		}
-		if config.Query != "" {
-			err = exportRecordsWithQuery(app, config.Fields, writer)
-		} else {
-			fields := config.Fields
-			isAppendIdCustome := false
-			if len(config.Fields) > 0 && !containtString(config.Fields, "$id") {
-				fields = append(fields, "$id")
-				isAppendIdCustome = true
-			}
-			err = exportRecordsBySeekMethod(app, writer, fields, isAppendIdCustome)
-		}
-	}
-
-	if !(config.IsImport || config.IsExport) {
-		if config.FilePath == "" {
-			writer := getWriter(getConsoleWriter())
-			if config.Query != "" {
-				err = exportRecordsWithQuery(app, config.Fields, writer)
-			} else {
-				fields := config.Fields
-				isAppendIdCustome := false
-				if len(config.Fields) > 0 && !containtString(config.Fields, "$id") {
-					fields = append(fields, "$id")
-					isAppendIdCustome = true
-				}
-				err = exportRecordsBySeekMethod(app, writer, fields, isAppendIdCustome)
-			}
 		} else {
 			err = importDataFromFile(app)
 		}
@@ -447,7 +431,6 @@ func printHelp() {
 	log.Output(2, "  -b, --file-dir=DIR             添付ファイルのディレクトリ（各添付ファイルの上限は100MBです）")
 	log.Output(2, "  -D, --delete-all               挿入前にレコードを削除します")
 	log.Output(2, "  -l, --line=LINE                入力ファイル内のデータの位置インデックス")
-	log.Output(2, "      --output-file=FILE         エクスポート結果を出力するファイルパス")
 	log.Output(2, "  -v, --version                  cli-kintone のバージョンを表示します")
 	log.Output(2, "  -h, --help                     このヘルプを表示します")
 	log.Output(2, "")
