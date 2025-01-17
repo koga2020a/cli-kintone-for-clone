@@ -21,7 +21,10 @@ import (
 
 const (
 	// 1回のバルクリクエストで処理できるレコード数の上限
-	ConstBulkRequestLimitRecordOption = 100
+	ConstBulkRequestLimitRecordOption = 10
+
+	// バルクリクエスト後の待機時間（秒）
+	ConstBulkRequestWaitSeconds = 5
 
 	// 1回のバルクリクエストで実行できるリクエスト数の上限
 	ConstBulkRequestLimitRequest = 20

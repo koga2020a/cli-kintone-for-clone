@@ -56,7 +56,7 @@ go get github.com/mattn/gom
 
 ### 5. ビルドの実行
 ```batch
-..\..\bin\gom.exe build
+go build -o .\build\windows-x64\cli-kintone.exe
 ```
 
 ## 著作権表示

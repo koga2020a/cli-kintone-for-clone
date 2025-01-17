@@ -304,6 +304,8 @@ func importFromCSV(app *kintone.App, _reader io.Reader) error {
 				bulkRequests.Requests = bulkRequests.Requests[:0]
 				nextRowImport = rowNumber + 1
 
+				// バルクリクエスト後に指定秒数待機
+				time.Sleep(time.Duration(ConstBulkRequestWaitSeconds) * time.Second)
 			}
 		}
 	}
