@@ -24,7 +24,10 @@ const (
 	ConstBulkRequestLimitRecordOption = 10
 
 	// バルクリクエスト後の待機時間（秒）
-	ConstBulkRequestWaitSeconds = 5
+	ConstBulkRequestWaitSeconds = 1
+
+	// ファイルディレクトリが指定された場合の待機時間（秒）
+	ConstBulkRequestWaitSecondsWithFile = 30
 
 	// 1回のバルクリクエストで実行できるリクエスト数の上限
 	ConstBulkRequestLimitRequest = 20

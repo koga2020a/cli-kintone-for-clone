@@ -305,7 +305,11 @@ func importFromCSV(app *kintone.App, _reader io.Reader) error {
 				nextRowImport = rowNumber + 1
 
 				// バルクリクエスト後に指定秒数待機
-				time.Sleep(time.Duration(ConstBulkRequestWaitSeconds) * time.Second)
+				if config.FileDir != "" {
+					time.Sleep(ConstBulkRequestWaitSecondsWithFile * time.Second)
+				} else {
+					time.Sleep(time.Duration(ConstBulkRequestWaitSeconds) * time.Second)
+				}
 			}
 		}
 	}
