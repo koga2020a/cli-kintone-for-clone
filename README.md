@@ -86,7 +86,7 @@ cli-kintone --import -a <アプリID> -d <FQDN> -e sjis -t <APIトークン> -f 
 
 ### 添付ファイルを./mydownloadsディレクトリにエクスポート・ダウンロード
 ```
-cli-kintone --import -a <アプリID> -d <FQDN> -t <APIトークン> -b mydownloads
+cli-kintone --export -a <アプリID> -d <FQDN> -t <APIトークン> -b mydownloads
 ```
 
 ### ./myuploadsディレクトリから添付ファイルをインポート・アップロード
@@ -137,6 +137,21 @@ cli-kintone --import -a <アプリID> -d <FQDN> -t <APIトークン> -f <入力�
 ```
 printf "name,age\nJohn,37\nJane,29" | cli-kintone --import -a <アプリID> -d <FQDN> -t <APIトークン>
 ```
+
+## 追加機能
+
+### バルクリクエスト関連オプション
+
+- `--bulk-wait-seconds`  
+  バルクリクエスト後の待機時間（秒）。デフォルトは1秒です。
+
+- `--bulk-wait-seconds-with-file`  
+  ファイルディレクトリ指定時のバルクリクエスト後の待機時間（秒）。デフォルトは30秒です。
+
+- `--bulk-limit-record-option`  
+  1回のバルクリクエストで処理できるレコード数の上限。デフォルトは10です。
+
+これらのオプションを使用することで、一括操作時のリクエスト制御が可能になります。
 
 ## 制限事項
 

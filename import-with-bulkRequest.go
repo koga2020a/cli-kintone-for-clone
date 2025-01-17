@@ -306,9 +306,9 @@ func importFromCSV(app *kintone.App, _reader io.Reader) error {
 
 				// バルクリクエスト後に指定秒数待機
 				if config.FileDir != "" {
-					time.Sleep(ConstBulkRequestWaitSecondsWithFile * time.Second)
+					time.Sleep(time.Duration(config.BulkWaitSecondsWithFile) * time.Second)
 				} else {
-					time.Sleep(time.Duration(ConstBulkRequestWaitSeconds) * time.Second)
+					time.Sleep(time.Duration(config.BulkWaitSeconds) * time.Second)
 				}
 			}
 		}

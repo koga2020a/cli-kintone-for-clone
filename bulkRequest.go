@@ -23,12 +23,6 @@ const (
 	// 1回のバルクリクエストで処理できるレコード数の上限
 	ConstBulkRequestLimitRecordOption = 10
 
-	// バルクリクエスト後の待機時間（秒）
-	ConstBulkRequestWaitSeconds = 1
-
-	// ファイルディレクトリが指定された場合の待機時間（秒）
-	ConstBulkRequestWaitSecondsWithFile = 30
-
 	// 1回のバルクリクエストで実行できるリクエスト数の上限
 	ConstBulkRequestLimitRequest = 20
 
@@ -132,6 +126,14 @@ func (bulk *BulkRequests) Request(app *kintone.App) (*DataResponseBulkPOST, inte
 	if err != nil {
 		return nil, kintone.ErrInvalidResponse
 	}
+
+	// 待機時間の設定をconfigから取得
+	if config.FileDir != "" {
+		time.Sleep(time.Duration(config.BulkWaitSecondsWithFile) * time.Second)
+	} else {
+		time.Sleep(time.Duration(config.BulkWaitSeconds) * time.Second)
+	}
+
 	return resp1, nil
 }
 
@@ -150,7 +152,7 @@ func (bulk *BulkRequests) ImportDataUpdate(app *kintone.App, recordData *kintone
 	bulkReqLength := len(bulk.Requests)
 
 	if bulkReqLength > ConstBulkRequestLimitRequest {
-		return errors.New("The length of bulk request was too large, maximun is " + string(rune(ConstBulkRequestLimitRequest)) + " per request")
+		return errors.New("The length of bulk request was too large, maximum is " + string(rune(ConstBulkRequestLimitRequest)) + " per request")
 	}
 	var dataPUT *DataRequestRecordsPUT
 	if bulkReqLength > 0 {
@@ -169,6 +171,14 @@ func (bulk *BulkRequests) ImportDataUpdate(app *kintone.App, recordData *kintone
 				dataPUT.SetRecord(recordData)
 			}
 			bulk.Requests[i].Payload = dataPUT
+
+			// 待機時間をconfigから取得
+			if config.FileDir != "" {
+				time.Sleep(time.Duration(config.BulkWaitSecondsWithFile) * time.Second)
+			} else {
+				time.Sleep(time.Duration(config.BulkWaitSeconds) * time.Second)
+			}
+
 			return nil
 		}
 	}

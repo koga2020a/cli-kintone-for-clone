@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -35,25 +36,28 @@ const EXPORT_ROW_LIMIT = 500
 
 // Configure of this package
 type Configure struct {
-	IsImport          bool     `long:"import" description:"Import data from standard input. If '-f' is specified, import data from file"`
-	IsExport          bool     `long:"export" description:"Export data from kintone"`
-	Domain            string   `short:"d" long:"domain" description:"Domain name (specify FQDN)"`
-	AppID             uint64   `short:"a" long:"app-id" description:"App ID"`
-	Login             string   `short:"u" long:"user" description:"User's login name"`
-	Password          string   `short:"p" long:"password" description:"User's password"`
-	APIToken          string   `short:"t" long:"api-token" description:"API token"`
-	GuestSpaceID      uint64   `short:"g" long:"guest-space-id" description:"Guest space ID"`
-	Format            string   `short:"o" long:"format" description:"Output format. Specify 'json' or 'csv'"`
-	Encoding          string   `short:"e" long:"encoding" description:"Character encoding. Supported encodings: 'utf-8', 'utf-16', 'utf-16be-with-signature', 'utf-16le-with-signature', 'sjis', 'euc-jp', 'gbk', 'big5'"`
-	BasicAuthUser     string   `short:"U" long:"basic-auth-user" description:"Basic authentication username"`
-	BasicAuthPassword string   `short:"P" long:"basic-auth-password" description:"Basic authentication password"`
-	Query             string   `short:"q" long:"query" description:"Query string"`
-	Fields            []string `short:"c" long:"fields" description:"Fields to export (comma-separated). Specify field code names"`
-	FilePath          string   `short:"f" long:"file" description:"Input/Output file path for import/export"`
-	FileDir           string   `short:"b" long:"file-dir" description:"Directory for file attachments (file attachment limit is 100MB per file)"`
-	DeleteAll         bool     `short:"D" long:"delete-all" description:"Delete records before insertion. Use option '-q' to specify delete conditions"`
-	Line              uint64   `short:"l" long:"line" description:"Data position index in input file"`
-	Version           bool     `short:"v" long:"version" description:"Display cli-kintone version"`
+	IsImport                bool     `long:"import" description:"Import data from standard input. If '-f' is specified, import data from file"`
+	IsExport                bool     `long:"export" description:"Export data from kintone"`
+	Domain                  string   `short:"d" long:"domain" description:"Domain name (specify FQDN)"`
+	AppID                   uint64   `short:"a" long:"app-id" description:"App ID"`
+	Login                   string   `short:"u" long:"user" description:"User's login name"`
+	Password                string   `short:"p" long:"password" description:"User's password"`
+	APIToken                string   `short:"t" long:"api-token" description:"API token"`
+	GuestSpaceID            uint64   `short:"g" long:"guest-space-id" description:"Guest space ID"`
+	Format                  string   `short:"o" long:"format" description:"Output format. Specify 'json' or 'csv'"`
+	Encoding                string   `short:"e" long:"encoding" description:"Character encoding. Supported encodings: 'utf-8', 'utf-16', 'utf-16be-with-signature', 'utf-16le-with-signature', 'sjis', 'euc-jp', 'gbk', 'big5'"`
+	BasicAuthUser           string   `short:"U" long:"basic-auth-user" description:"Basic authentication username"`
+	BasicAuthPassword       string   `short:"P" long:"basic-auth-password" description:"Basic authentication password"`
+	Query                   string   `short:"q" long:"query" description:"Query string"`
+	Fields                  []string `short:"c" long:"fields" description:"Fields to export (comma-separated). Specify field code names"`
+	FilePath                string   `short:"f" long:"file" description:"Input/Output file path for import/export"`
+	FileDir                 string   `short:"b" long:"file-dir" description:"Directory for file attachments (file attachment limit is 100MB per file)"`
+	DeleteAll               bool     `short:"D" long:"delete-all" description:"Delete records before insertion. Use option '-q' to specify delete conditions"`
+	Line                    uint64   `short:"l" long:"line" description:"Data position index in input file"`
+	Version                 bool     `short:"v" long:"version" description:"Display cli-kintone version"`
+	BulkWaitSeconds         int      `long:"bulk-wait-seconds" description:"バルクリクエスト後の待機時間（秒）。デフォルトは1秒です。" default:"1"`
+	BulkWaitSecondsWithFile int      `long:"bulk-wait-seconds-with-file" description:"ファイルディレクトリ指定時のバルクリクエスト後の待機時間（秒）。デフォルトは30秒です。" default:"30"`
+	BulkLimitRecordOption   int      `long:"bulk-limit-record-option" description:"1回のバルクリクエストで処理できるレコード数の上限。デフォルトは10です。" default:"10"`
 }
 
 var config Configure
@@ -82,6 +86,12 @@ type Cell struct {
 
 // Row config
 type Row []*Cell
+
+func init() {
+	// デフォルト値の設定（必要に応じて）
+	config.BulkWaitSeconds = 1
+	config.BulkWaitSecondsWithFile = 30
+}
 
 func getFields(app *kintone.App) (map[string]*kintone.FieldInfo, error) {
 	fields, err := app.Fields()
@@ -244,6 +254,19 @@ func setConsoleUTF8(file *os.File) error {
 	return nil
 }
 
+func validateConfig() error {
+	if config.BulkWaitSeconds < 0 {
+		return errors.New("bulk-wait-seconds は0以上の整数でなければなりません")
+	}
+	if config.BulkWaitSecondsWithFile < 0 {
+		return errors.New("bulk-wait-seconds-with-file は0以上の整数でなければなりません")
+	}
+	if config.BulkLimitRecordOption <= 0 {
+		return errors.New("bulk-limit-record-option は1以上の整数でなければなりません")
+	}
+	return nil
+}
+
 func main() {
 	var err error
 
@@ -385,6 +408,11 @@ func main() {
 		}
 	}
 
+	// 設定のバリデーション
+	if err := validateConfig(); err != nil {
+		log.Fatalf("設定エラー: %v", err)
+	}
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -433,6 +461,9 @@ func printHelp() {
 	log.Output(2, "  -l, --line=LINE                入力ファイル内のデータの位置インデックス")
 	log.Output(2, "  -v, --version                  cli-kintone のバージョンを表示します")
 	log.Output(2, "  -h, --help                     このヘルプを表示します")
+	log.Output(2, "  --bulk-wait-seconds=SECONDS             バルクリクエスト後の待機時間（秒）。デフォルトは1秒です。")
+	log.Output(2, "  --bulk-wait-seconds-with-file=SECONDS   ファイルディレクトリ指定時のバルクリクエスト後の待機時間（秒）。デフォルトは30秒です。")
+	log.Output(2, "  --bulk-limit-record-option=OPTION        1回のバルクリクエストで処理できるレコード数の上限。デフォルトは10です。")
 	log.Output(2, "")
 	log.Output(2, "詳細については https://github.com/kintone/cli-kintone を参照してください")
 }
