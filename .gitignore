@@ -1,3 +1,4 @@
 vendor
 build/
 cli-kintone.zip
+build_and_test.ps1
