@@ -58,6 +58,7 @@ jobs:
           
           # 期待する出力パターンのチェック
           $expectedLines = @(
+            ""
             "処理を開始します...",
             "Successfully downloaded records for app $env:KINTONE_APP_ID"
           )
