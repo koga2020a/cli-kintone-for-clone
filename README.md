@@ -25,17 +25,15 @@ cli-kintoneは、kintoneアプリのデータをエクスポート・インポ�
 
 ## バージョン
 
-0.14.1
+0.14.1.for-clone.0.1
 
 ## ダウンロード
 
 以下のバイナリがダウンロード可能です：
 
 - Windows
-- Linux
-- Mac OS X
 
-https://github.com/kintone-labs/cli-kintone/releases
+https://github.com/koga2020a/cli-kintone-for-clone/releases
 
 ## 使用方法
 ```text
