@@ -131,4 +131,4 @@ MIT License
 ## 👥 作者
 
 - オリジナル: Copyright (c) Cybozu, Inc.
-- 現バージョン: [kogaa](https://github.com/koga2020a)
+- 現バージョン: [koga2020a](https://github.com/koga2020a)
