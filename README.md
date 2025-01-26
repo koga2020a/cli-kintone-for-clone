@@ -3,8 +3,8 @@
 kintoneアプリのデータをエクスポート・インポートするためのコマンドラインツールです。
 
 > **Note**  
-> このリポジトリは、[オリジナルのcli-kintone](https://github.com/kintone/cli-kintone)（現在は開発停止中）をフォークし、現代のNode.js環境に対応するように更新したものです。主な改善点：
-> - 最新のNode.jsバージョンに対応
+> このリポジトリは、[オリジナルのcli-kintone](https://github.com/kintone/cli-kintone)（現在は開発停止中）をフォークし、現代のgoLang環境に対応するように更新したものです。主な改善点：
+> - 最新のgoLangバージョンに対応
 > - 依存パッケージを最新化
 > - パフォーマンスの改善
 > - バグ修正
@@ -132,3 +132,34 @@ MIT License
 
 - オリジナル: Copyright (c) Cybozu, Inc.
 - 現バージョン: [koga2020a](https://github.com/koga2020a)
+
+## 🔨 ビルド方法
+
+### 必要条件
+- Go 1.21以上
+
+### ソースからビルド
+```bash
+# リポジトリのクローン
+git clone https://github.com/koga2020a/cli-kintone.git
+cd cli-kintone
+
+# 依存パッケージのインストール
+go mod download
+
+# ビルド
+go build -o cli-kintone
+
+# インストール（オプション）
+go install
+```
+
+### バイナリのダウンロード
+[Releases](https://github.com/koga2020a/cli-kintone/releases)ページから、各プラットフォーム向けのビルド済みバイナリをダウンロードできます：
+- Windows (x64, ARM64)
+
+### クロスコンパイル(Windows 64bitのみ)
+```bash
+# Windows (64bit) 向けビルド
+GOOS=windows GOARCH=amd64 go build -o cli-kintone.exe
+```
