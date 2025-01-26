@@ -1,226 +1,134 @@
-cli-kintone
-==========
+# cli-kintone
 
-cli-kintoneは、kintoneアプリのデータをエクスポート・インポートするためのコマンドラインユーティリティです。
+kintoneアプリのデータをエクスポート・インポートするためのコマンドラインツールです。
 
-## プロジェクトの移行について
+> **Note**  
+> このリポジトリは、[オリジナルのcli-kintone](https://github.com/kintone/cli-kintone)（現在は開発停止中）をフォークし、現代のNode.js環境に対応するように更新したものです。主な改善点：
+> - 最新のNode.jsバージョンに対応
+> - 依存パッケージを最新化
+> - パフォーマンスの改善
+> - バグ修正
 
-このプロジェクトは、[オリジナルのcli-kintoneリポジトリ](https://github.com/kintone/cli-kintone)から移行され、現在はkintone-labsで管理されています。
+## 📚 ドキュメント
 
-### 主な変更点
-- Go言語のバージョンアップデート
-- セキュリティ強化
-- バグ修正と安定性の向上
-- 新機能の追加（バルクリクエスト制御など）
+詳細なドキュメントは以下のウェブサイトをご覧ください：
+https://cli.kintone.dev/
 
-### 現在の開発状態
-このプロジェクトは活発にメンテナンスされており、以下の目標に焦点を当てています：
-- パフォーマンスの最適化
-- ユーザビリティの向上
-- 最新のkintone APIへの対応
+## 🚀 インストール
 
-```
-ⓘ このツールは git://github.com/kintone/cli-kintone から移行されました
-```
+npmを使用してインストール：
 
-## バージョン
-
-0.14.1.for-clone.0.1
-
-## ダウンロード
-
-以下のバイナリがダウンロード可能です：
-
-- Windows
-
-https://github.com/koga2020a/cli-kintone-for-clone/releases
-
-## 使用方法
-```text
-使用方法:
-    cli-kintone [オプション]
-
-基本オプション:
-        --import         標準入力からデータをインポートします。"-f"が指定された場合は、ファイルからインポートします
-        --export         kintoneのデータを標準出力にエクスポートします
-    -d, --domain        ドメイン名（FQDNを指定）[必須]
-    -a, --app-id        アプリID [必須]
-    -u, --user          ログインユーザー名 [※]
-    -p, --password      ユーザーパスワード [※]
-    -t, --api-token     APIトークン [※]
-                        ※ APIトークンまたはユーザー名/パスワードのいずれかが必須
-
-追加オプション:
-    -g, --guest-space-id        ゲストスペースID（デフォルト: 0）
-    -o, --format               出力形式。'json'または'csv'を指定（デフォルト: csv）
-    -e, --encoding             文字エンコーディング（デフォルト: utf-8）
-                              以下のエンコーディングのみサポート:
-                              'utf-8', 'utf-16', 'utf-16be-with-signature', 'utf-16le-with-signature', 
-                              'sjis', 'euc-jp', 'gbk', 'big5'
-    -U, --basic-auth-user      Basic認証ユーザー名
-    -P, --basic-auth-password  Basic認証パスワード
-    -q, --query               クエリ文字列
-    -c, --fields             エクスポートするフィールド（カンマ区切り）。フィールドコード名を指定
-    -f, --file               入力ファイルパス
-    -b, --file-dir          添付ファイルディレクトリ
-    -D, --delete-all        挿入前にレコードを削除。オプション"-q"で削除条件を指定可能
-    -l, --line              入力ファイル内のデータ開始位置（デフォルト: 1）
-    -v, --version           cli-kintoneのバージョン
-
-ヘルプオプション:
-    -h, --help             このヘルプメッセージを表示
+```bash
+npm install -g @kintone/cli-kintone
 ```
 
-## 使用例
-注意:
-* Windowsデバイスを使用する場合は、cli-kintone.exeを指定してください
-* 事前にcli-kintoneへのPATHを環境に合わせて設定してください
+## 📋 基本的な使用例
 
-### アプリから全カラムをエクスポート
-```
-cli-kintone --export -a <アプリID> -d <FQDN> -t <APIトークン>
+### レコードのエクスポート
+```bash
+cli-kintone --export -a <アプリID> -d <ドメイン> -t <APIトークン>
 ```
 
-### 指定したカラムをShift-JISエンコードでCSVファイルにエクスポート
-```
-cli-kintone --export -a <アプリID> -d <FQDN> -e sjis -c "$id, name1, name2" -t <APIトークン> > <出力ファイル>
-```
-
-### ファイルからアプリにインポート
-```
-cli-kintone --import -a <アプリID> -d <FQDN> -e sjis -t <APIトークン> -f <入力ファイル>
+### レコードのインポート
+```bash
+cli-kintone --import -a <アプリID> -d <ドメイン> -t <APIトークン> -f <入力ファイル>
 ```
 
-レコード番号フィールド（$id）またはキーフィールド（*記号付きフィールドコード、例："\*mykeyfield"）を含むファイルをインポートする場合、レコードは更新および/または追加されます。
+### 主なオプション
 
-- $id（またはキーフィールド）の値が既存のレコード番号と一致する場合、そのレコードは更新されます
-- $id（またはキーフィールド）の値が空の場合、新しいレコードが追加されます
-- $id（またはキーフィールド）の値が既存のレコード番号と一致しない場合、インポートは停止しエラーが発生します
-- ファイルに$id（またはキーフィールド）列が存在しない場合、新しいレコードのみが追加され、更新は行われません
+| オプション | 説明 | デフォルト値 | 必須 |
+|------------|------|------------|------|
+| `-i, --import` | 標準入力またはファイルからデータをインポート | - | - |
+| `-e, --export` | kintoneからデータをエクスポート | - | - |
+| `-a, --app-id` | アプリIDを指定 | - | ✅ |
+| `-d, --domain` | kintoneドメインを指定（例：company.kintone.com） | - | ✅ |
+| `-u, --user` | ログインユーザー名 | - | APIトークンがない場合✅ |
+| `-p, --password` | ログインパスワード | - | APIトークンがない場合✅ |
+| `-t, --api-token` | APIトークン | - | ユーザー認証がない場合✅ |
+| `-g, --guest-space-id` | ゲストスペースID | - | - |
+| `-o, --format` | 出力形式（json または csv） | csv | - |
+| `-e, --encoding` | 文字エンコーディング（utf-8, utf-16, utf-16be-with-signature, utf-16le-with-signature, sjis, euc-jp, gbk, big5） | utf-8 | - |
+| `-U, --basic-auth-user` | Basic認証のユーザー名 | - | - |
+| `-P, --basic-auth-password` | Basic認証のパスワード | - | - |
+| `-q, --query` | クエリ文字列 | - | - |
+| `-c, --fields` | エクスポートするフィールド（カンマ区切り） | - | - |
+| `-f, --file` | 入出力ファイルパス | - | - |
+| `-b, --file-dir` | 添付ファイルのディレクトリ（上限100MB/ファイル） | - | - |
+| `-D, --delete-all` | インポート前にレコードを削除 | false | - |
+| `-l, --line` | 入力ファイル内のデータ位置インデックス | - | - |
+| `--bulk-wait-seconds` | バルクリクエスト後の待機時間（秒） | 1 | - |
+| `--bulk-wait-seconds-with-file` | ファイル添付時のバルクリクエスト後の待機時間（秒） | 30 | - |
+| `--bulk-limit-record-option` | 1回のバルクリクエストで処理するレコード数の上限 | 10 | - |
 
-### 添付ファイルを./mydownloadsディレクトリにエクスポート・ダウンロード
-```
-cli-kintone --export -a <アプリID> -d <FQDN> -t <APIトークン> -b mydownloads
-```
+### 認証方法
 
-### ./myuploadsディレクトリから添付ファイルをインポート・アップロード
-> :warning: 警告
->- "-b"フラグが指定されていない場合、CSVの添付ファイルフィールドの値に関係なく、添付ファイルフィールドはスキップされkintoneで更新されません
->
->- "-b"フラグが指定され、CSVの添付ファイルフィールドの値が空（空白または""）の場合、kintoneにインポート後の添付ファイルフィールドのデータは削除されます
->   - 全ての添付ファイルを削除する条件：
->       - "-b"フラグにディレクトリパスが指定されている
->       - CSVファイルに添付ファイル列が必要
->       - CSVのディレクトリパスが空
->       - 添付ファイルは任意
->   - 一部の添付ファイルを削除し一部を更新する条件：
->       - "-b"フラグにディレクトリパスが指定されている
->       - CSVファイルに添付ファイル列が必要
->       - 更新する添付ファイルのみ必要
->
->例：添付ファイルフィールドのファイルを削除するCSVファイル
->```
->"$id","Name","Department","File"
->"1","Adam Clark","Planning",""
->"2","Sarah Jones","HR",""
->```
->&nbsp;
+以下のいずれかの認証方法を選択できます：
 
-```
-cli-kintone --import -a <アプリID> -d <FQDN> -t <APIトークン> -b myuploads -f <入力ファイル>
+1. APIトークン認証
+```bash
+cli-kintone --export -a <アプリID> -d <ドメイン> -t <APIトークン>
 ```
 
-### キーを指定して一括更新するインポート
-> :warning: 警告
->
->CSVインポートファイルに"$id"とキーフィールドの両方が指定されている場合、「"$id"フィールドと更新キーフィールドを同時に指定することはできません」というエラーメッセージが表示されます。
-
-一括更新のキーは、入力ファイル内でフィールドコード名の前に*を付けて指定する必要があります。
-例：「"update_date","*id","status"」
-
-```
-cli-kintone --import -a <アプリID> -d <FQDN> -e sjis -t <APIトークン> -f <入力ファイル>
+2. ユーザー認証
+```bash
+cli-kintone --export -a <アプリID> -d <ドメイン> -u <ユーザー名> -p <パスワード>
 ```
 
-### 入力ファイルの25行目からCSVをインポート
-```
-cli-kintone --import -a <アプリID> -d <FQDN> -t <APIトークン> -f <入力ファイル> -l 25
-```
-
-### 標準入力（stdin）からインポート
-```
-printf "name,age\nJohn,37\nJane,29" | cli-kintone --import -a <アプリID> -d <FQDN> -t <APIトークン>
+3. Basic認証付きの場合
+```bash
+cli-kintone --export -a <アプリID> -d <ドメイン> -t <APIトークン> \
+  -U <Basic認証ユーザー> -P <Basic認証パスワード>
 ```
 
-## 追加機能
+### 高度な使用例
 
-### バルクリクエスト関連オプション
+```bash
+# 特定のフィールドのみをエクスポート
+cli-kintone --export -a 1234 -d company.kintone.com -t "XXX" --fields "field1,field2"
 
-- `--bulk-wait-seconds`  
-  バルクリクエスト後の待機時間（秒）。デフォルトは1秒です。
+# クエリを指定してエクスポート
+cli-kintone --export -a 1234 -d company.kintone.com -t "XXX" --query "created_time > \"2023-01-01\""
 
-- `--bulk-wait-seconds-with-file`  
-  ファイルディレクトリ指定時のバルクリクエスト後の待機時間（秒）。デフォルトは30秒です。
+# Basic認証付きでインポート
+cli-kintone --import -a 1234 -d company.kintone.com -t "XXX" -f data.csv \
+  --basic-auth-username "user" --basic-auth-password "pass"
 
-- `--bulk-limit-record-option`  
-  1回のバルクリクエストで処理できるレコード数の上限。デフォルトは10です。
+# JSONフォーマットでエクスポート
+cli-kintone --export -a 1234 -d company.kintone.com -t "XXX" --format json
+```
 
-これらのオプションを使用することで、一括操作時のリクエスト制御が可能になります。
+## 🔧 主な機能
 
-## 制限事項
+- CSVまたはJSONフォーマットでのデータのインポート/エクスポート
+- 添付ファイルの取り扱い
+- バルクリクエストのサポート
+- 複数の文字エンコーディングのサポート
+- Basic認証対応
 
-### リクエスト制限
-- 1回のバルクリクエストで処理できるレコード数の上限: 100件
-- 1回のバルクリクエストで実行できるリクエスト数の上限: 20件
-- 1回のリクエストで処理できるレコード数の上限: 100件
-- エクスポート時の1回あたりの最大取得レコード数: 500件
+## ⚠️ 制限事項
 
-### ファイル制限
-* 添付ファイルフィールドへのアップロードファイルサイズは1ファイルあたり100MBまでです
-* cli-kintoneではクライアント証明書を使用できません
+- 1リクエストあたりの最大レコード数：100件
+- 添付ファイルの最大サイズ：100MB/ファイル
+- クライアント証明書は非対応
 
-### サポート対象外のフィールド
-以下のレコードデータは取得できません：
-* グループフィールド
-* スペース
-* ラベル
-* 罫線
-* 関連レコード
-* ステータス
-* 担当者
-* カテゴリー
+詳細な制限事項については[公式ドキュメント](https://cli.kintone.dev/)をご確認ください。
 
-### エンコード/デコードの制限
-* Windowsコマンドプロンプトでは「文字化け」のような文字が正しく表示されない場合があります。
-  これは中国語および日本語の文字とWindowsコマンドプロンプトの互換性の問題によるものです。
-  * 中国語（繁体字/簡体字）：gbkまたはbig5エンコードでエクスポートしても正しく表示されません
-  * 日本語：sjisまたはeuc-jpエンコードでエクスポートしても正しく表示されません
+## 🤝 コントリビューション
 
-  この場合、以下のようにutf-8エンコードを指定してデータを表示してください：
-  ```
-  cli-kintone --export -a <アプリID> -d <FQDN> -e utf-8
-  ```
-  *この問題はWindowsコマンドプロンプトでの表示時のみ発生します。他の方法でのデータのインポート/エクスポートは、gbk、big5、sjis、euc-jpエンコードで正常に動作します。
+バグ報告や機能要望は[Issues](https://github.com/kintone/cli-kintone/issues)にて受け付けています。
 
-## 基本的な使用方法のドキュメント
-- 英語: https://kintone.dev/en/tutorials/tool-guides/features-of-the-command-line-tool/
-- 日本語: https://developer.cybozu.io/hc/ja/articles/202957070
+## 📜 ライセンス
 
-## ビルド方法
+MIT License
 
-必要条件
+## 📝 注記
 
-- Go 1.15.15
-- パッケージのクローンに必要なGitとMercurial
+このプロジェクトは、Cybozu, Inc.による[オリジナルのcli-kintone](https://github.com/kintone/cli-kintone)を基に、現代のgolang環境でビルド可能なように改良されたバージョンです。オリジナルのプロジェクトは開発が停止していますが、このバージョンでは以下の改善が行われています：
 
-[Mac OS X/Linux](./docs/BuildForMacLinux.md)
+- 大きいサイズの添付ファイルのアップロード時に、より確実なデータ処理
+- バルクリクエストの制御方法の改善
 
-[Windows](./docs/BuildForWindows.md)
+## 👥 作者
 
-## ライセンス
-
-GPL v2
-
-## 著作権
-
-Copyright(c) Cybozu, Inc.
+- オリジナル: Copyright (c) Cybozu, Inc.
+- 現バージョン: [kogaa](https://github.com/koga2020a)
