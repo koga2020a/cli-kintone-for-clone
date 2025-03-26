@@ -319,7 +319,7 @@ func importFromCSV(app *kintone.App, _reader io.Reader) error {
 			// キーを取得してソートするなどの処理が必要な場合はここに追加
 
 			for key, value := range record {
-				formattedRecord.WriteString(fmt.Sprintf("  %s: %v\n", key, value))
+				formattedRecord.WriteString(fmt.Sprintf("  %s:\t%v\n", key, value))
 			}
 
 			currentCSVRecord = formattedRecord.String()
