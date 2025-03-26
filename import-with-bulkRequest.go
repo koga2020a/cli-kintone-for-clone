@@ -311,6 +311,18 @@ func importFromCSV(app *kintone.App, _reader io.Reader) error {
 					time.Sleep(time.Duration(config.BulkWaitSeconds) * time.Second)
 				}
 			}
+
+			// 現在の処理対象のCSVレコードを整形して保存
+			var formattedRecord strings.Builder
+			formattedRecord.WriteString("CSVレコード:\n")
+
+			// キーを取得してソートするなどの処理が必要な場合はここに追加
+
+			for key, value := range record {
+				formattedRecord.WriteString(fmt.Sprintf("  %s: %v\n", key, value))
+			}
+
+			currentCSVRecord = formattedRecord.String()
 		}
 	}
 	if len(bulkRequests.Requests) > 0 {

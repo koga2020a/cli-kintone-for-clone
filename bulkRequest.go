@@ -31,6 +31,8 @@ const (
 	ConstRecordsLimitPerRequest = 100
 )
 
+var currentCSVRecord string
+
 // BulkRequestItem item in the bulkRequest array
 type BulkRequestItem struct {
 	Method  string      `json:"method"`
@@ -409,6 +411,9 @@ func writeErrorLog(baseFileName string, recordNumber uint64, errMsg string) {
 	fileName := fmt.Sprintf("%s_%s_%d.log", baseFileName, timestamp, recordNumber)
 	filePath := dir + fileName
 
+	// エラーメッセージにCSVレコードの内容を追加
+	errMsg += fmt.Sprintf("\nCSVレコード: %s\n", currentCSVRecord)
+
 	err := ioutil.WriteFile(filePath, []byte(errMsg), 0644)
 	if err != nil {
 		fmt.Printf("エラーログの書き込みに失敗しました: %v\n", err)
@@ -493,7 +498,7 @@ func (bulk *BulkRequests) HandelResponse(rep *DataResponseBulkPOST, err interfac
 		showTimeLog()
 
 		// AutoContinue が有効な場合は処理を続行
-		if config.AutoContinue {
+		if !config.DisableAutoContinue {
 			fmt.Println("エラー発生のため、次の行の処理を自動で続行します。")
 			return
 		} else {
