@@ -13,6 +13,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"os"
+	"path/filepath"
 	"reflect"
 	"time"
 
@@ -395,6 +396,27 @@ func (err *ErrorResponse) show(prefix string) {
 
 }
 
+func writeErrorLog(baseFileName string, recordNumber uint64, errMsg string) {
+	// 処理起動日時（例: 20250326_153045）
+	timestamp := time.Now().Format("20060102_150405")
+	// エラーログ出力用ディレクトリ
+	dir := "./error_log/"
+	// ディレクトリが存在しなければ作成
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		os.MkdirAll(dir, 0755)
+	}
+	// ファイル名の例: input.csv_20250326_153045_15.log
+	fileName := fmt.Sprintf("%s_%s_%d.log", baseFileName, timestamp, recordNumber)
+	filePath := dir + fileName
+
+	err := ioutil.WriteFile(filePath, []byte(errMsg), 0644)
+	if err != nil {
+		fmt.Printf("エラーログの書き込みに失敗しました: %v\n", err)
+	} else {
+		fmt.Printf("エラーログを %s に出力しました。\n", filePath)
+	}
+}
+
 // HandelResponse for bulkRequest
 func (bulk *BulkRequests) HandelResponse(rep *DataResponseBulkPOST, err interface{}, lastRowImport, rowNumber uint64) {
 	if err != nil {
@@ -402,12 +424,14 @@ func (bulk *BulkRequests) HandelResponse(rep *DataResponseBulkPOST, err interfac
 
 		method := map[string]string{"POST": "挿入", "PUT": "更新"}
 		methodOccuredError := ""
+		errorMsg := fmt.Sprintf("インポートファイルの %d 行目から %d 行目にエラーがあります。\n", lastRowImport, rowNumber)
 
 		if reflect.TypeOf(err).String() != "*main.BulkRequestsErrors" {
 			if reflect.TypeOf(err).String() != "*main.BulkRequestsError" {
 				fmt.Printf("\n")
 				fmt.Println(err)
 				fmt.Printf("\n")
+				errorMsg += fmt.Sprintf("エラー詳細: %v\n", err)
 			} else {
 				errorResp := &ErrorResponse{
 					Status:  err.(*BulkRequestsError).HTTPStatus,
@@ -421,6 +445,10 @@ func (bulk *BulkRequests) HandelResponse(rep *DataResponseBulkPOST, err interfac
 				fmt.Printf("処理: %s\n", method[bulk.Requests[0].Method])
 				fmt.Printf("行範囲: %d から %d\n", lastRowImport, rowNumber)
 				errorResp.showDetailed("")
+
+				errorMsg += fmt.Sprintf("処理: %s\n", method[bulk.Requests[0].Method])
+				errorMsg += fmt.Sprintf("エラーID: %s\nエラーコード: %s\nメッセージ: %s\n",
+					errorResp.ID, errorResp.Code, errorResp.Message)
 			}
 		} else {
 			errorsResp := err.(*BulkRequestsErrors)
@@ -444,21 +472,44 @@ func (bulk *BulkRequests) HandelResponse(rep *DataResponseBulkPOST, err interfac
 				errorResp.showDetailed("")
 
 				methodOccuredError = method[bulk.Requests[idx].Method]
+
+				errorMsg += fmt.Sprintf("\n=== エラー #%d ===\n", idx+1)
+				errorMsg += fmt.Sprintf("処理: %s\n", method[bulk.Requests[idx].Method])
+				errorMsg += fmt.Sprintf("エラーID: %s\nエラーコード: %s\nメッセージ: %s\n",
+					errorResp.ID, errorResp.Code, errorResp.Message)
 			}
 		}
 
-		showTimeLog()
-		fmt.Printf("処理を中止しました!\n\n")
-
-		// エラーメッセージの改善
-		errorMsg := fmt.Sprintf("インポートファイルの %d 行目から %d 行目にエラーがあります。\n", lastRowImport, rowNumber)
-		errorMsg += fmt.Sprintf("ファイルのエラーを修正し、-l %d オプションを付けて再度インポートしてください。\n", lastRowImport)
-
-		if methodOccuredError != "" {
-			fmt.Printf("%s処理でエラー: %s\n", methodOccuredError, errorMsg)
+		// ベースファイル名の取得
+		baseFileName := "input" // デフォルト値
+		if config.FilePath != "" {
+			// ファイルパスから名前のみを取得
+			_, baseFileName = filepath.Split(config.FilePath)
 		}
 
-		os.Exit(1)
+		// エラーログの出力
+		writeErrorLog(baseFileName, rowNumber, errorMsg)
+
+		showTimeLog()
+
+		// AutoContinue が有効な場合は処理を続行
+		if config.AutoContinue {
+			fmt.Println("エラー発生のため、次の行の処理を自動で続行します。")
+			return
+		} else {
+			// AutoContinue が無効の場合は処理を中止
+			fmt.Printf("処理を中止しました!\n\n")
+
+			// エラーメッセージの改善
+			errorMsg := fmt.Sprintf("インポートファイルの %d 行目から %d 行目にエラーがあります。\n", lastRowImport, rowNumber)
+			errorMsg += fmt.Sprintf("ファイルのエラーを修正し、-l %d オプションを付けて再度インポートしてください。\n", lastRowImport)
+
+			if methodOccuredError != "" {
+				fmt.Printf("%s処理でエラー: %s\n", methodOccuredError, errorMsg)
+			}
+
+			os.Exit(1)
+		}
 	}
 	fmt.Println(" => 成功")
 }

@@ -58,6 +58,7 @@ type Configure struct {
 	BulkWaitSeconds         int      `long:"bulk-wait-seconds" description:"バルクリクエスト後の待機時間（秒）。デフォルトは1秒です。" default:"1"`
 	BulkWaitSecondsWithFile int      `long:"bulk-wait-seconds-with-file" description:"ファイルディレクトリ指定時のバルクリクエスト後の待機時間（秒）。デフォルトは30秒です。" default:"30"`
 	BulkLimitRecordOption   int      `long:"bulk-limit-record-option" description:"1回のバルクリクエストで処理できるレコード数の上限。デフォルトは10です。" default:"10"`
+	AutoContinue            bool     `long:"auto-continue" description:"Continue processing after an error" default:"true"`
 }
 
 var config Configure
@@ -464,6 +465,7 @@ func printHelp() {
 	log.Output(2, "  --bulk-wait-seconds=SECONDS             バルクリクエスト後の待機時間（秒）。デフォルトは1秒です。")
 	log.Output(2, "  --bulk-wait-seconds-with-file=SECONDS   ファイルディレクトリ指定時のバルクリクエスト後の待機時間（秒）。デフォルトは30秒です。")
 	log.Output(2, "  --bulk-limit-record-option=OPTION        1回のバルクリクエストで処理できるレコード数の上限。デフォルトは10です。")
+	log.Output(2, "  --auto-continue                         エラー発生時に次のレコードの処理を継続する（デフォルトで有効）")
 	log.Output(2, "")
 	log.Output(2, "詳細については https://github.com/kintone/cli-kintone を参照してください")
 }
